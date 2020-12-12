@@ -3,10 +3,16 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_atom.h>
 #include <signal.h>
+#include <time.h>
 
 void error(char *message) {
     fprintf(stderr, "ERROR: %s\n", message);
     exit(1 + (((size_t)message - (size_t)error) % 255));
+}
+
+void status_time(char *buf) {
+    time_t now = time(NULL);
+    strftime(buf, 64, "%Y/%m/%d %H:%M:%S", localtime(&now));
 }
 
 int main()
@@ -23,8 +29,7 @@ int main()
     xcb_window_t root = scr->root;
     while (1) {
         static char status[128];
-        snprintf(status, sizeof(status),
-            "%i", 123);
+        status_time(status);
         xcb_change_property(conn,
             XCB_PROP_MODE_REPLACE, root, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
             8, sizeof(status), status);
