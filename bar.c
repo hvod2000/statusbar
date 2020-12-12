@@ -4,15 +4,19 @@
 #include <xcb/xcb_atom.h>
 #include <signal.h>
 #include <time.h>
+#include <string.h>
+#include <stdlib.h>
 
 void error(char *message) {
     fprintf(stderr, "ERROR: %s\n", message);
     exit(1 + (((size_t)message - (size_t)error) % 255));
 }
 
-void status_time(char *buf) {
+char *status_time() {
     time_t now = time(NULL);
-    strftime(buf, 64, "%Y/%m/%d %H:%M:%S", localtime(&now));
+    char *status = malloc(20);
+    strftime(status, 20, "%Y/%m/%d %H:%M:%S", localtime(&now));
+    return status;
 }
 
 int main()
@@ -28,12 +32,12 @@ int main()
     if (!scr) error("can't get root window");
     xcb_window_t root = scr->root;
     while (1) {
-        static char status[128];
-        status_time(status);
+        char *status = status_time();
         xcb_change_property(conn,
             XCB_PROP_MODE_REPLACE, root, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
-            8, sizeof(status), status);
+            8, strlen(status), status);
         xcb_flush(conn);
+        free(status);
         usleep(15625);
     }
 }
