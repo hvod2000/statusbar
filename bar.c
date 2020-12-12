@@ -6,6 +6,11 @@
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
+#include <netdb.h>
+#include <ifaddrs.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <linux/wireless.h>
 
 void error(char *message) {
     fprintf(stderr, "ERROR: %s\n", message);
@@ -27,6 +32,33 @@ char *status_time() {
     return status;
 }
 
+char *status_wifi() {
+    char *ifaddrs2str(struct ifaddrs *ifa) {
+        char ip[16], id[32] = "";
+        struct iwreq req;
+        strcpy(req.ifr_ifrn.ifrn_name, ifa->ifa_name);
+        req.u.essid.pointer = id;
+        req.u.essid.length = 32;
+        int sock = socket(AF_INET, SOCK_DGRAM, 0);
+        ioctl(sock, SIOCGIWESSID, &req);
+        close(sock);
+        getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr), ip, 16, NULL, 0, 1);
+        char *res = malloc(strlen(ifa->ifa_name) + strlen(ip) + strlen(id) + 4);
+        sprintf(res, "%s:%s<%s>", ifa->ifa_name, id, ip);
+        return res;
+    }
+    struct ifaddrs *ifas;
+    char *status = NULL;
+    getifaddrs(&ifas);
+    for (struct ifaddrs *ifa = ifas; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_INET
+            || strcmp(ifa->ifa_name, "lo") == 0) continue;
+        status = cat(status, " ", ifaddrs2str(ifa));
+    }
+    free(ifas);
+    return status;
+}
+
 int main()
 {
     xcb_connection_t *conn = xcb_connect(NULL, NULL);
@@ -40,7 +72,7 @@ int main()
     if (!scr) error("can't get root window");
     xcb_window_t root = scr->root;
     while (1) {
-        char *status = status_time();
+        char *status = cat(status_wifi(), " | ", status_time());
         xcb_change_property(conn,
             XCB_PROP_MODE_REPLACE, root, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
             8, strlen(status), status);
