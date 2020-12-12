@@ -68,6 +68,8 @@ int main()
 	error("stopped by SIGINT"); 
     }
     signal(SIGINT, sigint_handler);
+    void sigalrm_handler(int num) {};
+    signal(SIGALRM, sigalrm_handler);
     xcb_screen_t *scr = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
     if (!scr) error("can't get root window");
     xcb_window_t root = scr->root;
@@ -78,6 +80,6 @@ int main()
             8, strlen(status), status);
         xcb_flush(conn);
         free(status);
-        usleep(15625);
+        sleep(1);
     }
 }
