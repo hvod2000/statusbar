@@ -12,6 +12,14 @@ void error(char *message) {
     exit(1 + (((size_t)message - (size_t)error) % 255));
 }
 
+char *cat(char *s1, char *sep, char *s2) {
+    if (!s1) return s2; if (!s2) return s1;
+    char *res = malloc(strlen(s1) + strlen(s2) + strlen(sep) + 1);
+    sprintf(res, "%s%s%s", s1, sep, s2);
+    free(s1); free(s2);
+    return res;
+}
+
 char *status_time() {
     time_t now = time(NULL);
     char *status = malloc(20);
