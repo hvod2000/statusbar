@@ -11,6 +11,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <linux/wireless.h>
+#include <alsa/asoundlib.h>
 
 void error(char *message) {
     fprintf(stderr, "ERROR: %s\n", message);
@@ -59,8 +60,28 @@ char *status_wifi() {
     return status;
 }
 
-int main()
-{
+char *status_alsa() {
+    snd_mixer_t *mixer;
+    if (snd_mixer_open(&mixer, 1) ||
+        snd_mixer_attach(mixer, "default") ||
+        snd_mixer_selem_register(mixer, NULL, NULL) ||
+        snd_mixer_load(mixer)) return NULL;
+    snd_mixer_selem_id_t *id;
+    snd_mixer_selem_id_alloca(&id);
+    snd_mixer_selem_id_set_index(id, 0);
+    snd_mixer_selem_id_set_name(id, "Master");
+    snd_mixer_elem_t *elem = snd_mixer_find_selem(mixer, id);
+    if (!elem) {snd_mixer_close(mixer); return NULL; };
+    long min, max, vol;
+    snd_mixer_selem_get_playback_volume_range(elem, &min, &max);
+    snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_LEFT, &vol);
+    snd_mixer_close(mixer);
+    char *status = malloc(8);
+    sprintf(status, "vol:%3i",((vol - min)*100 + (max - min)/2) / (max - min));
+    return status;
+}
+
+int main() {
     xcb_connection_t *conn = xcb_connect(NULL, NULL);
     if (xcb_connection_has_error(conn)) error("can't connect to X11 server");
     void sigint_handler(int num) {
@@ -74,7 +95,8 @@ int main()
     if (!scr) error("can't get root window");
     xcb_window_t root = scr->root;
     while (1) {
-        char *status = cat(status_wifi(), " | ", status_time());
+        char *status = cat(status_wifi(), " | ", status_alsa());
+        status = cat(status, " | ", status_time());
         xcb_change_property(conn,
             XCB_PROP_MODE_REPLACE, root, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
             8, strlen(status), status);
