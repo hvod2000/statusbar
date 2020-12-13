@@ -60,7 +60,13 @@ char *status_wifi() {
     return status;
 }
 
-char *status_alsa() {
+char cached_volume[8] = "";
+char *status_alsa(int t) {
+    if (t) {
+        char *status = malloc(8);
+        strcpy(status, cached_volume);
+        return status;
+    }
     snd_mixer_t *mixer;
     if (snd_mixer_open(&mixer, 1) ||
         snd_mixer_attach(mixer, "default") ||
@@ -78,6 +84,7 @@ char *status_alsa() {
     snd_mixer_close(mixer);
     char *status = malloc(8);
     sprintf(status, "vol:%3i",((vol - min)*100 + (max - min)/2) / (max - min));
+    strcpy(cached_volume, status);
     return status;
 }
 
@@ -94,14 +101,15 @@ int main() {
     xcb_screen_t *scr = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
     if (!scr) error("can't get root window");
     xcb_window_t root = scr->root;
-    while (1) {
-        char *status = cat(status_wifi(), " | ", status_alsa());
-        status = cat(status, " | ", status_time());
+    for (int t = 0;; t = (t + 1) % 64) {
+        if (usleep(1000000)) t = 0;
+        char *status = cat(
+            cat(status_wifi(), " | ", status_alsa(t)),
+            " | ", status_time());
         xcb_change_property(conn,
             XCB_PROP_MODE_REPLACE, root, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
             8, strlen(status), status);
         xcb_flush(conn);
         free(status);
-        sleep(1);
     }
 }
