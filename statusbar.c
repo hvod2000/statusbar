@@ -102,7 +102,6 @@ int main() {
     if (!scr) error("can't get root window");
     xcb_window_t root = scr->root;
     for (int t = 0;; t = (t + 1) % 64) {
-        if (usleep(1000000)) t = 0;
         char *status = cat(
             cat(status_wifi(), " | ", status_alsa(t)),
             " | ", status_time());
@@ -111,5 +110,6 @@ int main() {
             8, strlen(status), status);
         xcb_flush(conn);
         free(status);
+        if (usleep(1000000)) t = -1;
     }
 }
